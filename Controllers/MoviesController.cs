@@ -34,7 +34,7 @@ namespace mojefilmy_softwarestudio_be.Controllers
 
       if (movie == null)
       {
-        return NotFound();
+        return NotFound($"An error occurred while getting movie with id={id}: Not found.");
       }
 
       return movie;
@@ -47,7 +47,8 @@ namespace mojefilmy_softwarestudio_be.Controllers
     {
       if (id != movie.Id)
       {
-        return BadRequest();
+
+        return BadRequest("An error occurred while updating movie.");
       }
 
       _context.Entry(movie).State = EntityState.Modified;
@@ -60,7 +61,7 @@ namespace mojefilmy_softwarestudio_be.Controllers
       {
         if (!MovieExists(id))
         {
-          return NotFound();
+          return NotFound($"An error occurred while getting movie with id={id}: Not found.");
         }
         else
         {
@@ -109,7 +110,7 @@ namespace mojefilmy_softwarestudio_be.Controllers
       var movie = await _context.Movies.FindAsync(id);
       if (movie == null)
       {
-        return NotFound();
+        return NotFound($"An error occurred while getting movie with id={id}: Not found.");
       }
 
       _context.Movies.Remove(movie);
