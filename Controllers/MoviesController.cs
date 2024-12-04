@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using mojefilmy_softwarestudio_be.Models;
@@ -41,7 +40,6 @@ namespace mojefilmy_softwarestudio_be.Controllers
     }
 
     // PUT: api/Movies/5
-    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPut("{id}")]
     public async Task<IActionResult> PutMovie(int id, CreateMovieDTO updatedMovie)
     {
@@ -79,7 +77,6 @@ namespace mojefilmy_softwarestudio_be.Controllers
     }
 
     // POST: api/Movies
-    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPost]
     public async Task<ActionResult<Movie>> PostMovie(CreateMovieDTO createMovie)
     {
