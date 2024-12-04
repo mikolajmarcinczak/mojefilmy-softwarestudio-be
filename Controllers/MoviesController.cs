@@ -43,15 +43,21 @@ namespace mojefilmy_softwarestudio_be.Controllers
     // PUT: api/Movies/5
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPut("{id}")]
-    public async Task<IActionResult> PutMovie(int id, Movie movie)
+    public async Task<IActionResult> PutMovie(int id, CreateMovieDTO updatedMovie)
     {
-      if (id != movie.Id)
-      {
+      var existingMovie = await _context.Movies.FindAsync(id);
 
-        return BadRequest("An error occurred while updating movie.");
+      if (existingMovie == null)
+      {
+        return NotFound($"Movie with id={id} not found.");
       }
 
-      _context.Entry(movie).State = EntityState.Modified;
+      _context.Entry(existingMovie).State = EntityState.Modified;
+
+      existingMovie.Title = updatedMovie.Title;
+      existingMovie.Director = updatedMovie.Director;
+      existingMovie.Rate = updatedMovie.Rate;
+      existingMovie.Year = updatedMovie.Year;
 
       try
       {
@@ -75,12 +81,26 @@ namespace mojefilmy_softwarestudio_be.Controllers
     // POST: api/Movies
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPost]
-    public async Task<ActionResult<Movie>> PostMovie(Movie movie)
+    public async Task<ActionResult<Movie>> PostMovie(CreateMovieDTO createMovie)
     {
+      if (string.IsNullOrEmpty(createMovie.Title) || string.IsNullOrEmpty(createMovie.Director))
+      {
+        return BadRequest("Title and Director are required fields.");
+      }
+
+      var movie = new Movie
+      {
+        Title = createMovie.Title,
+        Director = createMovie.Director,
+        Rate = createMovie.Rate,
+        Year = createMovie.Year,
+        ExternalId = null
+      };
+
       _context.Movies.Add(movie);
       await _context.SaveChangesAsync();
 
-      return CreatedAtAction(nameof(Movie), new { id = movie.Id }, movie);
+      return CreatedAtAction(nameof(GetMovie), new { id = movie.Id }, movie);
     }
 
     [HttpPost("import")]
@@ -90,6 +110,11 @@ namespace mojefilmy_softwarestudio_be.Controllers
 
       foreach (var movie in externalMovies)
       {
+        if (string.IsNullOrEmpty(movie.Title) || string.IsNullOrEmpty(movie.Director))
+        {
+          continue;
+        }
+
         bool exists = await _context.Movies.AnyAsync(m => m.ExternalId == movie.ExternalId);
 
         if (!exists)
@@ -134,30 +159,48 @@ namespace mojefilmy_softwarestudio_be.Controllers
         var response = await _client.GetAsync(externalUrl);
         response.EnsureSuccessStatusCode();
 
-        var content = await response.Content.ReadAsStreamAsync();
-        var externalMovies = await JsonSerializer.DeserializeAsync<List<ExternalMovie>>(content);
+        var content = await response.Content.ReadAsStringAsync();
+        var externalMovies = JsonSerializer.Deserialize<List<ExternalMovie>>(content, new JsonSerializerOptions
+        {
+          PropertyNameCaseInsensitive = true
+        });
 
         if (externalMovies == null)
         {
+          Console.WriteLine("No movies found in the external API response.");
           return new List<Movie>();
         }
 
-        var movies = externalMovies.Select(m => new Movie
-        {
-          ExternalId = m.Id,
-          Title = m.Title,
-          Director = m.Director,
-          Rate = m.Rate,
-          Year = m.Year
-        }).ToList();
+        var movies = externalMovies
+          .Where(m => !string.IsNullOrEmpty(m.Title) && !string.IsNullOrEmpty(m.Director))
+          .Select(m => new Movie
+          {
+            ExternalId = m.Id,
+            Title = m.Title ?? "Untitled",
+            Director = m.Director ?? "Unknown",
+            Rate = m.Rate,
+            Year = m.Year
+          }).ToList();
 
         return movies;
       }
+      catch (JsonException jsonEx)
+      {
+        Console.WriteLine($"JSON Deserialization Error: {jsonEx.Message}");
+        Environment.Exit(-1);
+        return new List<Movie>();
+      }
+      catch (HttpRequestException httpEx)
+      {
+        Console.WriteLine($"HTTP Request Error: {httpEx.Message}");
+        Environment.Exit(-1);
 
+        return new List<Movie>();
+      }
       catch (Exception ex)
       {
         var errorString = nameof(_client) + ex.Message;
-        
+
         Console.WriteLine(errorString);
         Environment.Exit(-1);
 

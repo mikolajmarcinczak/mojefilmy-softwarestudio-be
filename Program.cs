@@ -1,20 +1,25 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.DependencyInjection;
 using mojefilmy_softwarestudio_be.Models;
+using mojefilmy_softwarestudio_be.Properties;
 using Npgsql;
 
 #region Builder, Connection string
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionStringBuilder = new NpgsqlConnectionStringBuilder();
-connectionStringBuilder.SslMode = SslMode.VerifyFull;
-string dbUrlEnv = Environment.GetEnvironmentVariable("DATABASE_URL");
+string dbUrlEnv = Resources.DATABASE_URL;
 
-if (dbUrlEnv != null)
+
+if (dbUrlEnv == null)
 {
   throw new Exception("DATABASE_URL environment variable is not set");
 }
 
 Uri databaseUrl = new Uri(dbUrlEnv);
+
+connectionStringBuilder.SslMode = SslMode.Require;
 connectionStringBuilder.Host = databaseUrl.Host;
 connectionStringBuilder.Port = databaseUrl.Port;
 connectionStringBuilder.Username = databaseUrl.UserInfo.Split(':')[0];
@@ -26,9 +31,14 @@ connectionStringBuilder.Database = "movies";
 
 #region Services
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+  .AddJsonOptions(options =>
+  {
+    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+  });
+
 builder.Services.AddHttpClient();
-builder.Services.AddDbContextPool<MovieContext>(options =>
+builder.Services.AddDbContext<MovieContext>(options =>
     options.UseNpgsql(connectionStringBuilder.ConnectionString));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -50,8 +60,9 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+  app.UseHsts();
+  app.UseSwagger();
+  app.UseSwaggerUI();
 }
 
 app.UseCors("AllowAll");
